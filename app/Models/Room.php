@@ -37,10 +37,16 @@ class Room extends Model
     /**
      * Cek berapa unit kamar tipe ini yang masih available
      * di rentang tanggal check_in - check_out tertentu.
+     *
+     * @param string $checkIn
+     * @param string $checkOut
+     * @param int|null $excludeBookingId  ID booking yang dikecualikan dari hitungan
+     *                                    (dipakai saat reschedule, biar booking yang lagi
+     *                                    diubah gak dianggap "nyangkut" ngeblok slotnya sendiri)
      */
-    public function availableUnits(string $checkIn, string $checkOut): int
+    public function availableUnits(string $checkIn, string $checkOut, ?int $excludeBookingId = null): int
     {
-        $bookedCount = $this->bookings()
+        $query = $this->bookings()
             ->whereIn('status', ['pending', 'confirmed', 'checked_in'])
             ->where(function ($q) use ($checkIn, $checkOut) {
                 $q->whereBetween('check_in', [$checkIn, $checkOut])
@@ -49,8 +55,13 @@ class Room extends Model
                       $q2->where('check_in', '<=', $checkIn)
                          ->where('check_out', '>=', $checkOut);
                   });
-            })
-            ->count();
+            });
+
+        if ($excludeBookingId) {
+            $query->where('id', '!=', $excludeBookingId);
+        }
+
+        $bookedCount = $query->count();
 
         return max(0, $this->total_unit - $bookedCount);
     }

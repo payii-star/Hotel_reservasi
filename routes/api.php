@@ -9,7 +9,9 @@ use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\GalleryController;
 use App\Http\Controllers\Api\HotelInfoController;
 use App\Http\Controllers\Api\RoomController;
+use App\Http\Controllers\Api\MidtransController;
 use Illuminate\Support\Facades\Route;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -23,10 +25,14 @@ Route::get('/gallery', [GalleryController::class, 'index']);
 Route::get('/hotel-info', [HotelInfoController::class, 'show']);
 
 Route::get('/bookings/{code}', [BookingController::class, 'show']);
+Route::post('/bookings/{code}/pay', [BookingController::class, 'pay']);
+Route::patch('/bookings/{code}/reschedule', [BookingController::class, 'reschedule']);
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
+
+Route::post('/midtrans/callback', [MidtransController::class, 'callback']);
 
 /*
 |--------------------------------------------------------------------------

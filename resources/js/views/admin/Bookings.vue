@@ -1,10 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import api from '../../services/api'
+import BookingDetailModal from '../BookingDetailModal.vue'
 
 const bookings = ref([])
 const filter = ref('')
 const loading = ref(false)
+const actionError = ref('')
+const selectedBooking = ref(null)
 
 const statusLabel = {
   pending: 'Menunggu',
@@ -22,16 +25,42 @@ const statusColor = {
   cancelled: 'bg-clay/20 text-clay',
 }
 
+// Aksi yang tersedia untuk tiap status saat ini.
+// Konfirmasi pembayaran (pending -> confirmed) sengaja TIDAK ada di sini,
+// karena itu hanya boleh terjadi otomatis lewat callback Midtrans.
+const nextActionMap = {
+  pending: { label: 'Batalkan', status: 'cancelled' },
+  confirmed: { label: 'Check-in', status: 'checked_in' },
+  checked_in: { label: 'Check-out', status: 'checked_out' },
+}
+
 async function load() {
   loading.value = true
+  actionError.value = ''
   const res = await api.get('/admin/bookings', { params: filter.value ? { status: filter.value } : {} })
   bookings.value = res.data
   loading.value = false
 }
 
-async function updateStatus(booking, status) {
-  await api.patch(`/admin/bookings/${booking.id}/status`, { status })
-  booking.status = status
+async function doNextAction(booking) {
+  const action = nextActionMap[booking.status]
+  if (!action) return
+
+  actionError.value = ''
+  try {
+    await api.patch(`/admin/bookings/${booking.id}/status`, { status: action.status })
+    booking.status = action.status
+  } catch (e) {
+    actionError.value = e.response?.data?.message || 'Gagal mengubah status.'
+  }
+}
+
+function openDetail(b) {
+  selectedBooking.value = b
+}
+
+function closeDetail() {
+  selectedBooking.value = null
 }
 
 function formatPrice(price) {
@@ -55,6 +84,7 @@ onMounted(load)
       </select>
     </div>
 
+    <p v-if="actionError" class="text-clay text-sm mb-4">{{ actionError }}</p>
     <p v-if="loading" class="text-ink/50">Memuat...</p>
 
     <div v-else class="bg-white rounded-2xl border border-mist/30 overflow-hidden">
@@ -71,8 +101,21 @@ onMounted(load)
           </tr>
         </thead>
         <tbody>
-          <tr v-for="b in bookings" :key="b.id" class="border-t border-mist/20">
-            <td class="px-4 py-3 font-medium">{{ b.booking_code }}</td>
+          <tr
+            v-for="b in bookings"
+            :key="b.id"
+            class="border-t border-mist/20 cursor-pointer hover:bg-sand/50"
+            @click="openDetail(b)"
+          >
+            <td class="px-4 py-3 font-medium">
+              {{ b.booking_code }}
+              <span
+                v-if="b.rescheduled_at"
+                class="block mt-1 w-fit px-2 py-0.5 rounded-full text-[10px] font-medium bg-brass/20 text-brass"
+              >
+                Direschedule
+              </span>
+            </td>
             <td class="px-4 py-3">
               {{ b.guest_name }}<br />
               <span class="text-ink/40 text-xs">{{ b.guest_phone }}</span>
@@ -86,17 +129,20 @@ onMounted(load)
               </span>
             </td>
             <td class="px-4 py-3">
-              <select :value="b.status" @change="updateStatus(b, $event.target.value)" class="border border-mist/40 rounded-lg px-2 py-1 text-xs">
-                <option value="pending">Menunggu</option>
-                <option value="confirmed">Konfirmasi</option>
-                <option value="checked_in">Check-in</option>
-                <option value="checked_out">Check-out</option>
-                <option value="cancelled">Batalkan</option>
-              </select>
+              <button
+                v-if="nextActionMap[b.status]"
+                @click.stop="doNextAction(b)"
+                class="text-xs font-medium px-3 py-1.5 rounded-lg bg-pine text-sand hover:opacity-90"
+              >
+                {{ nextActionMap[b.status].label }}
+              </button>
+              <span v-else class="text-xs text-ink/40">Tidak ada aksi</span>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <BookingDetailModal :booking="selectedBooking" :is-admin="true" @close="closeDetail" />
   </div>
 </template>

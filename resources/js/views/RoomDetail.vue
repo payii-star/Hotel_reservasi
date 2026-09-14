@@ -80,7 +80,24 @@ async function submitBooking() {
       room_id: room.value.id,
       ...form.value,
     })
-    result.value = res.data.booking
+
+    const snapToken = res.data.snap_token
+    const bookingResult = res.data.booking
+
+    window.snap.pay(snapToken, {
+      onSuccess: function () {
+        result.value = bookingResult
+      },
+      onPending: function () {
+        result.value = bookingResult
+      },
+      onError: function () {
+        errorMsg.value = 'Pembayaran gagal, silakan coba lagi.'
+      },
+      onClose: function () {
+        errorMsg.value = 'Anda menutup jendela pembayaran sebelum selesai. Booking masih menunggu pembayaran, cek status di menu Cek Booking.'
+      },
+    })
   } catch (e) {
     errorMsg.value = e.response?.data?.message || 'Terjadi kesalahan, coba lagi.'
   } finally {

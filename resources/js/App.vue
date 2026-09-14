@@ -47,6 +47,8 @@ const showMobileMenu = ref(false)
 function logout() {
   localStorage.removeItem('guest_token')
   localStorage.removeItem('guest_user')
+  localStorage.removeItem('admin_token')
+  localStorage.removeItem('admin_name')
   guestUser.value = null
   isLoggedIn.value = false
   showProfileMenu.value = false
